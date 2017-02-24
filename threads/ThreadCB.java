@@ -1,6 +1,6 @@
 package osp.Threads;
-import java.util.Vector;
-import java.util.Enumeration;
+//import java.util.Vector;
+//import java.util.Enumeration;
 import osp.Utilities.*;
 import osp.IFLModules.*;
 import osp.Tasks.*;
@@ -9,6 +9,9 @@ import osp.Hardware.*;
 import osp.Devices.*;
 import osp.Memory.*;
 import osp.Resources.*;
+import java.util.*;
+
+
 
 /**
    This class is responsible for actions related to threads, including
@@ -29,8 +32,9 @@ public class ThreadCB extends IflThreadCB
     */
     public ThreadCB()
     {
-        // your code goes here
-
+        super(); // for IflThreadCB constructor parameter;
+        double CPUTimeUsed = 0;
+        this.setStatus(ThreadReady);
     }
 
     /**
@@ -41,7 +45,9 @@ public class ThreadCB extends IflThreadCB
     */
     public static void init()
     {
-        // your code goes here
+        // your code goes here 
+        Set<ThreadCB> ReadyQueue = new HashSet<ThreadCB>();
+        
 
     }
 
@@ -64,8 +70,21 @@ public class ThreadCB extends IflThreadCB
     */
     static public ThreadCB do_create(TaskCB task)
     {
-        // your code goes here
+        System.out.println("Maximum Threads in Task " + IflThreadCB.MaxThreadsPerTask + 
+                            "Current Threads in Task " + task.getThreadCount());
+        if (IflThreadCB.MaxThreadsPerTask<=task.getThreadCount())
+            return null;
 
+        ThreadCB newThread = new ThreadCB();
+        
+        if (task.addThread(newThread) == FAILURE) 
+            return null;
+        
+        newThread.setTask(task);
+        System.out.println("Priority " + newThread.getPriority());
+        System.out.println("Creation time " + newThread.getCreationTime() + " CPUTime " + newThread.getTimeOnCPU());
+
+        return newThread;
     }
 
     /** 
@@ -140,7 +159,7 @@ public class ThreadCB extends IflThreadCB
     public static int do_dispatch()
     {
         // your code goes here
-
+        return 0;
     }
 
     /**
@@ -174,7 +193,24 @@ public class ThreadCB extends IflThreadCB
     /*
        Feel free to add methods/fields to improve the readability of your code
     */
+    public enum ThreadState
+    {
+        ThreadRunning(21),
+        ThreadReady(20),
+        ThreadWaiting(30),
+        ThreadKill(22);
 
+        private int value;
+
+        ThreadState(int value)
+        {
+            this.value = value;
+        }
+        private int GetState()
+        {
+            return value;
+        }
+    }
 }
 
 /*
