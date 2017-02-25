@@ -84,6 +84,7 @@ public class ThreadCB extends IflThreadCB
         System.out.println("Priority " + newThread.getPriority());
         System.out.println("Creation time " + newThread.getCreationTime() + " CPUTime " + newThread.getTimeOnCPU());
 
+
         return newThread;
     }
 
