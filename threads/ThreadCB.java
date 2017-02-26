@@ -72,16 +72,22 @@ public class ThreadCB extends IflThreadCB
     */
     static public ThreadCB do_create(TaskCB task)
     {
-        System.out.println("Maximum Threads in Task " + ThreadCB.MaxThreadsPerTask + 
-                            " Current Threads in Task " + task.getThreadCount() + " TR:" + ThreadRunning );
+        System.out.println("do_create");
                             
         if (ThreadCB.MaxThreadsPerTask<=task.getThreadCount())
+        {
+            System.out.println("Maximum threads number in task: "+ task.getThreadCount() + "/" + ThreadCB.MaxThreadsPerTask  );
+            ThreadCB.dispatch();
             return null;
+        }
 
         ThreadCB newThread = new ThreadCB();
         
         if (task.addThread(newThread) == FAILURE) 
+        {
+            ThreadCB.dispatch();
             return null;
+        }
         
         newThread.setTask(task);
         newThread.setStatus(ThreadReady);
@@ -93,7 +99,8 @@ public class ThreadCB extends IflThreadCB
         newThread.setPriority(newThread.Priority);
 
         ThreadCB.ReadyQueue.add(newThread); // add to read queue
-        PreemptThread(null, null, ThreadReady);
+        System.out.println("create "+newThread);
+        //PreemptThread(null, null);
         ThreadCB.dispatch();             // new thread has highest priority, call dispatch()
         return newThread;
     }
@@ -115,9 +122,11 @@ public class ThreadCB extends IflThreadCB
     {
         System.out.println("do_kill " + this);
         int CurrentStatus = this.getStatus();
+        TaskCB CurrentTask = this.getTask();
         if(CurrentStatus == ThreadRunning )
         {
-            PreemptThread(this.getTask(), this, ThreadKill);
+            this.setStatus(ThreadKill);
+            PreemptThread(CurrentTask, this);
         }
         else if(CurrentStatus == ThreadReady)
         {
@@ -131,10 +140,10 @@ public class ThreadCB extends IflThreadCB
             for(int i = 0; i<Device.getTableSize();i++)
                 Device.get(i).cancelPendingIO(this);
         }
-
+        CurrentTask.removeThread(this);
         ResourceCB.giveupResources(this);
-        if(this.getTask().getThreadCount() == 0)
-            this.getTask().kill();
+        if(CurrentTask.getThreadCount() == 0)
+            CurrentTask.kill();
         this.dispatch();
 
 
@@ -164,17 +173,23 @@ public class ThreadCB extends IflThreadCB
             Waiting level + 1. suspend() will be called automaticly, 
             so just call addThread(this) and correct setStatus 
         */
-        System.out.println("do_suspend");
+        System.out.println("do_suspend "+this);
+        System.out.print("ReadyQueue:");
         for (ThreadCB s : ReadyQueue) System.out.println(s);
+        System.out.print("WaitQueue:");
+        for (ThreadCB s : WaitQueue) System.out.println(s);
+        System.out.println("");
         event.addThread(this);
         int CurrentStatus = this.getStatus();
         if( CurrentStatus == ThreadRunning ) // suspend running thread
         {
-            PreemptThread(this.getTask(),this,ThreadWaiting);
-            ThreadCB.dispatch();
+            this.setStatus(ThreadWaiting);
+            //ThreadCB.dispatch();
+            PreemptThread(this.getTask(),this);
         }
         else if (CurrentStatus >= ThreadWaiting )
             this.setStatus(CurrentStatus+1);
+        ThreadCB.dispatch();
     }
 
     /** Resumes the thread.
@@ -188,7 +203,7 @@ public class ThreadCB extends IflThreadCB
     */
     public void do_resume()
     {
-        System.out.println("do_resume" + this);
+        System.out.println("do_resume " + this);
         int CurrentState = this.getStatus();
         if(CurrentState == ThreadWaiting)  // resume to ReadyQueue
         {
@@ -200,7 +215,7 @@ public class ThreadCB extends IflThreadCB
         {
             this.setStatus(CurrentState - 1);
         }
-        PreemptThread(null,null,ThreadReady);
+        //PreemptThread(null,null,ThreadReady);
         ThreadCB.dispatch();
     }
 
@@ -220,11 +235,12 @@ public class ThreadCB extends IflThreadCB
     public static int do_dispatch()
     {
         // pick highest priority from ready queue or running thread.
-        System.out.println("do_dispatch");
-        //PreempThread(null,null,null);
-        DispatchThread();
-        System.out.println("do_dispatch finish");
-        return SUCCESS;
+        System.out.println("do_dispatch ");
+        if(MMU.getPTBR() != null)
+            PreemptThread(null,null);
+        //DispatchThread();
+        HTimer.set(100);
+        return DispatchThread();
     }
 
     /**
@@ -267,9 +283,9 @@ public class ThreadCB extends IflThreadCB
     public static Set<ThreadCB> ReadyQueue;
     public static Set<ThreadCB> WaitQueue;
 
-    public static int PreemptThread(TaskCB CurrentTask, ThreadCB CurrentThread, int Case)
+    public static int PreemptThread(TaskCB CurrentTask, ThreadCB CurrentThread)
     {
-        System.out.println("[Preempt Phase ]" + Case);
+        System.out.println("[Preempt Phase ]");
         if(CurrentThread == null)
         {
             PageTable CurrentPTBR;        
@@ -280,30 +296,34 @@ public class ThreadCB extends IflThreadCB
             }
             CurrentTask = CurrentPTBR.getTask();
             CurrentThread = CurrentTask.getCurrentThread();
+            
         }
         
+        int Case = CurrentThread.getStatus();
         long TotalTimeOnCPU = CurrentThread.getTimeOnCPU();
         System.out.println("TotalTimeOnCPU "+TotalTimeOnCPU +"- TimeOnCPU " +CurrentThread.TimeOnCPU);
         if(Case == ThreadReady)
         {
             // stop by exceeding time limit, put to readyqueue
-            CurrentThread.setStatus(ThreadReady);
-            System.out.println(CurrentThread+" Set status to ThreadReady ");
+            System.out.println(CurrentThread+" Status ThreadReady ");
             ReadyQueue.add(CurrentThread);
         }
-        else if (Case == ThreadWaiting)
+        else if(Case >= ThreadWaiting)
         {
             // stop by event, put to waitqueue
-            CurrentThread.setStatus(ThreadWaiting);
-            System.out.println(CurrentThread+" Set status to ThreadWaiting ");
+            System.out.println(CurrentThread+" Status to ThreadWaiting ");
             WaitQueue.add(CurrentThread);
         }
         else if(Case == ThreadKill)
         {
-            CurrentThread.setStatus(ThreadKill);
-            System.out.println(CurrentThread+" Set status to ThreadKill ");
+            System.out.println(CurrentThread+" Status to ThreadKill ");
         }
-
+        else if(Case == ThreadRunning)
+        {
+            System.out.println(CurrentThread+" Set status ThreadRunning to ThreadReady ");
+            CurrentThread.setStatus(ThreadReady);
+            ReadyQueue.add(CurrentThread);            
+        }
         MMU.setPTBR(null); 
         CurrentTask.setCurrentThread(null);
 
@@ -320,8 +340,13 @@ public class ThreadCB extends IflThreadCB
         if(ReadyQueue.isEmpty()) // go to idle
         {
             System.out.println("[DispatchThread] ReadyQueue Empty");
-            return SUCCESS;
+            return FAILURE;
         }
+        System.out.print("ReadyQueue:");
+        for (ThreadCB s : ReadyQueue) System.out.println(s);
+        System.out.print("WaitQueue:");
+        for (ThreadCB s : WaitQueue) System.out.println(s);
+        System.out.println("");
         ThreadCB PriorThread = ReadyQueue.stream().min((t1, t2)->Integer.compare(t1.Priority,t2.Priority)).get();
         TaskCB PriorTask = PriorThread.getTask();
         System.out.println("DispatchThread "+PriorThread);

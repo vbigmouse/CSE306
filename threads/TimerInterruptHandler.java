@@ -1,5 +1,4 @@
 package osp.Threads;
-
 import osp.IFLModules.*;
 import osp.Utilities.*;
 import osp.Hardware.*;
@@ -20,8 +19,8 @@ public class TimerInterruptHandler extends IflTimerInterruptHandler
     */
     public void do_handleInterrupt()
     {
-        HTimer.set(100);
-        ThreadCB.PreemptThread(null,null,ThreadReady);
+        //ThreadCB.setStatus(ThreadReady);
+        //ThreadCB.PreemptThread(null,null,ThreadReady);
         ThreadCB.dispatch();
     }
 
