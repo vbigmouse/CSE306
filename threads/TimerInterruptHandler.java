@@ -20,8 +20,9 @@ public class TimerInterruptHandler extends IflTimerInterruptHandler
     */
     public void do_handleInterrupt()
     {
-        // your code goes here
-
+        HTimer.set(100);
+        ThreadCB.PreemptThread(null,null,ThreadReady);
+        ThreadCB.dispatch();
     }
 
 

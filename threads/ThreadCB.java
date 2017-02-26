@@ -33,8 +33,11 @@ public class ThreadCB extends IflThreadCB
     public ThreadCB()
     {
         super(); // for IflThreadCB constructor parameter;
-        double CPUTimeUsed = 0;
-        this.setStatus(ThreadReady);
+        this.TimeOnCPU = 0;
+        this.LastTimeOnCPU = 0;
+        this.CreationTime = 0;
+        this.Priority = 0;
+        //this.Status = ThreadState.ThreadReady;
     }
 
     /**
@@ -46,9 +49,8 @@ public class ThreadCB extends IflThreadCB
     public static void init()
     {
         // your code goes here 
-        Set<ThreadCB> ReadyQueue = new HashSet<ThreadCB>();
-        
-
+        ThreadCB.ReadyQueue = new HashSet<ThreadCB>();
+        ThreadCB.WaitQueue = new HashSet<ThreadCB>();
     }
 
     /** 
@@ -70,9 +72,10 @@ public class ThreadCB extends IflThreadCB
     */
     static public ThreadCB do_create(TaskCB task)
     {
-        System.out.println("Maximum Threads in Task " + IflThreadCB.MaxThreadsPerTask + 
-                            "Current Threads in Task " + task.getThreadCount());
-        if (IflThreadCB.MaxThreadsPerTask<=task.getThreadCount())
+        System.out.println("Maximum Threads in Task " + ThreadCB.MaxThreadsPerTask + 
+                            " Current Threads in Task " + task.getThreadCount() + " TR:" + ThreadRunning );
+                            
+        if (ThreadCB.MaxThreadsPerTask<=task.getThreadCount())
             return null;
 
         ThreadCB newThread = new ThreadCB();
@@ -81,10 +84,17 @@ public class ThreadCB extends IflThreadCB
             return null;
         
         newThread.setTask(task);
-        System.out.println("Priority " + newThread.getPriority());
-        System.out.println("Creation time " + newThread.getCreationTime() + " CPUTime " + newThread.getTimeOnCPU());
+        newThread.setStatus(ThreadReady);
 
+        newThread.CreationTime = newThread.getCreationTime();
+        newThread.TimeOnCPU = newThread.getTimeOnCPU();
 
+        newThread.Priority = (int) newThread.TimeOnCPU;
+        newThread.setPriority(newThread.Priority);
+
+        ThreadCB.ReadyQueue.add(newThread); // add to read queue
+        PreemptThread(null, null, ThreadReady);
+        ThreadCB.dispatch();             // new thread has highest priority, call dispatch()
         return newThread;
     }
 
@@ -103,7 +113,30 @@ public class ThreadCB extends IflThreadCB
     */
     public void do_kill()
     {
-        // your code goes here
+        System.out.println("do_kill " + this);
+        int CurrentStatus = this.getStatus();
+        if(CurrentStatus == ThreadRunning )
+        {
+            PreemptThread(this.getTask(), this, ThreadKill);
+        }
+        else if(CurrentStatus == ThreadReady)
+        {
+            this.setStatus(ThreadKill);
+            ReadyQueue.remove(this);
+        }
+        else if(CurrentStatus >= ThreadWaiting)
+        {
+            this.setStatus(ThreadKill);
+            WaitQueue.remove(this);
+            for(int i = 0; i<Device.getTableSize();i++)
+                Device.get(i).cancelPendingIO(this);
+        }
+
+        ResourceCB.giveupResources(this);
+        if(this.getTask().getThreadCount() == 0)
+            this.getTask().kill();
+        this.dispatch();
+
 
     }
 
@@ -124,9 +157,24 @@ public class ThreadCB extends IflThreadCB
         @OSPProject Threads
     */
     public void do_suspend(Event event)
-    {
-        // your code goes here
-
+    {   
+        /* 
+            set current running thread to wait and 
+            PTBR, running null. All the event waiting queue
+            Waiting level + 1. suspend() will be called automaticly, 
+            so just call addThread(this) and correct setStatus 
+        */
+        System.out.println("do_suspend");
+        for (ThreadCB s : ReadyQueue) System.out.println(s);
+        event.addThread(this);
+        int CurrentStatus = this.getStatus();
+        if( CurrentStatus == ThreadRunning ) // suspend running thread
+        {
+            PreemptThread(this.getTask(),this,ThreadWaiting);
+            ThreadCB.dispatch();
+        }
+        else if (CurrentStatus >= ThreadWaiting )
+            this.setStatus(CurrentStatus+1);
     }
 
     /** Resumes the thread.
@@ -140,8 +188,20 @@ public class ThreadCB extends IflThreadCB
     */
     public void do_resume()
     {
-        // your code goes here
-
+        System.out.println("do_resume" + this);
+        int CurrentState = this.getStatus();
+        if(CurrentState == ThreadWaiting)  // resume to ReadyQueue
+        {
+            this.setStatus(ThreadReady);
+            ReadyQueue.add(this);
+            WaitQueue.remove(this);
+        }
+        else
+        {
+            this.setStatus(CurrentState - 1);
+        }
+        PreemptThread(null,null,ThreadReady);
+        ThreadCB.dispatch();
     }
 
     /** 
@@ -159,8 +219,12 @@ public class ThreadCB extends IflThreadCB
     */
     public static int do_dispatch()
     {
-        // your code goes here
-        return 0;
+        // pick highest priority from ready queue or running thread.
+        System.out.println("do_dispatch");
+        //PreempThread(null,null,null);
+        DispatchThread();
+        System.out.println("do_dispatch finish");
+        return SUCCESS;
     }
 
     /**
@@ -194,7 +258,83 @@ public class ThreadCB extends IflThreadCB
     /*
        Feel free to add methods/fields to improve the readability of your code
     */
-    public enum ThreadState
+    private long TimeOnCPU;
+    private long LastTimeOnCPU;    // for counting time on cpu limit
+    private long CreationTime;
+    private int Priority;
+    //private ThreadState Status; 
+
+    public static Set<ThreadCB> ReadyQueue;
+    public static Set<ThreadCB> WaitQueue;
+
+    public static int PreemptThread(TaskCB CurrentTask, ThreadCB CurrentThread, int Case)
+    {
+        System.out.println("[Preempt Phase ]" + Case);
+        if(CurrentThread == null)
+        {
+            PageTable CurrentPTBR;        
+            if ( (CurrentPTBR = MMU.getPTBR()) == null )
+            {
+                System.out.println("No task is running, dispatch from ReadyQueue! ");
+                return SUCCESS;
+            }
+            CurrentTask = CurrentPTBR.getTask();
+            CurrentThread = CurrentTask.getCurrentThread();
+        }
+        
+        long TotalTimeOnCPU = CurrentThread.getTimeOnCPU();
+        System.out.println("TotalTimeOnCPU "+TotalTimeOnCPU +"- TimeOnCPU " +CurrentThread.TimeOnCPU);
+        if(Case == ThreadReady)
+        {
+            // stop by exceeding time limit, put to readyqueue
+            CurrentThread.setStatus(ThreadReady);
+            System.out.println(CurrentThread+" Set status to ThreadReady ");
+            ReadyQueue.add(CurrentThread);
+        }
+        else if (Case == ThreadWaiting)
+        {
+            // stop by event, put to waitqueue
+            CurrentThread.setStatus(ThreadWaiting);
+            System.out.println(CurrentThread+" Set status to ThreadWaiting ");
+            WaitQueue.add(CurrentThread);
+        }
+        else if(Case == ThreadKill)
+        {
+            CurrentThread.setStatus(ThreadKill);
+            System.out.println(CurrentThread+" Set status to ThreadKill ");
+        }
+
+        MMU.setPTBR(null); 
+        CurrentTask.setCurrentThread(null);
+
+        CurrentThread.TimeOnCPU = TotalTimeOnCPU; // update total time 
+        CurrentThread.Priority = (int) CurrentThread.TimeOnCPU;
+        CurrentThread.setPriority(CurrentThread.Priority);        
+
+        return SUCCESS;
+    }
+
+    public static int DispatchThread()
+    {
+        System.out.println("[Dispatch Phase ]");
+        if(ReadyQueue.isEmpty()) // go to idle
+        {
+            System.out.println("[DispatchThread] ReadyQueue Empty");
+            return SUCCESS;
+        }
+        ThreadCB PriorThread = ReadyQueue.stream().min((t1, t2)->Integer.compare(t1.Priority,t2.Priority)).get();
+        TaskCB PriorTask = PriorThread.getTask();
+        System.out.println("DispatchThread "+PriorThread);
+        PriorThread.setStatus(ThreadRunning);
+        MMU.setPTBR(PriorTask.getPageTable());       //set PTBR to pagetable of prior thread
+        PriorTask.setCurrentThread(PriorThread);
+        System.out.println("Remove from ready queue"); 
+        ReadyQueue.remove(PriorThread);
+        return SUCCESS; 
+
+    }
+    
+    /*public enum ThreadState
     {
         ThreadRunning(21),
         ThreadReady(20),
@@ -211,7 +351,7 @@ public class ThreadCB extends IflThreadCB
         {
             return value;
         }
-    }
+    }*/
 }
 
 /*
