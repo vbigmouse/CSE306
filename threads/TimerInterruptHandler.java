@@ -1,3 +1,5 @@
+/* 20170306 Hung-Ruey Chen SBUID:109971346 */
+
 package osp.Threads;
 import osp.IFLModules.*;
 import osp.Utilities.*;
@@ -19,8 +21,6 @@ public class TimerInterruptHandler extends IflTimerInterruptHandler
     */
     public void do_handleInterrupt()
     {
-        //ThreadCB.setStatus(ThreadReady);
-        //ThreadCB.PreemptThread(null,null,ThreadReady);
         ThreadCB.dispatch();
     }
 
