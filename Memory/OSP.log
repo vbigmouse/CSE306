@@ -1,0 +1,26 @@
+Sim: 0 [EventEngine.EventDriver]  
+	Simulation Start Time: Thu Mar 30 00:44:15 EDT 2017
+	Parameter file: Misc\params.osp
+
+	Legend:
+	  Thread(X:Y/S) means: thread X of task Y, status=S
+	  Task(X/S) means: task X, status=S
+	  Page(X:Y/Z) means: page X of task Y in frame Z
+	  Openfile(X:Y/Z) means: open file X of task Y on device Z
+	  Port(X:Y/S) means: port X of task Y has status S
+	Status code abbreviations:
+	  RD(ThreadReady), RU(ThreadRunning),
+	  Wn(ThreadWaiting, n=waitlevel), KL(ThreadKill)
+	  L(TaskLive), T(TaskTerm), NN(NONE)
+	  L(PortLive), D(PortDestroyed), NN(NONE)
+
+
+Sim: 0 <<Error!>> [IFLModules.MMU]  
+	MMU.init() failed to initialize Frame(0)
+
+	at osp.IFLModules.IflMMU.X(IflMMU.java:66)
+	at osp.EventEngine.EngineThread.run(EngineThread.java:42)
+
+Sim: 0 [Utilities.Simulation]  
+	Elapsed time: 0 seconds
+
