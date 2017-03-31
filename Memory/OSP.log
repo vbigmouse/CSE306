@@ -1,5 +1,5 @@
 Sim: 0 [EventEngine.EventDriver]  
-	Simulation Start Time: Thu Mar 30 00:44:15 EDT 2017
+	Simulation Start Time: Thu Mar 30 22:47:59 EDT 2017
 	Parameter file: Misc\params.osp
 
 	Legend:
@@ -15,12 +15,55 @@ Sim: 0 [EventEngine.EventDriver]
 	  L(PortLive), D(PortDestroyed), NN(NONE)
 
 
-Sim: 0 <<Error!>> [IFLModules.MMU]  
-	MMU.init() failed to initialize Frame(0)
-
-	at osp.IFLModules.IflMMU.X(IflMMU.java:66)
-	at osp.EventEngine.EngineThread.run(EngineThread.java:42)
-
-Sim: 0 [Utilities.Simulation]  
-	Elapsed time: 0 seconds
-
+Sim: 0 [IFLModules.ResourceCB]  
+	Deadlock handling mode: Detection
+Sim: 0 [IFLModules.TaskCB]  
+	Entering create()
+Mod: 0 [Tasks.TaskCB]  
+	Task(1/NN) created
+Sim: 0 [IFLModules.FileSys]  
+	Creating file: create(/vm/1,65536)
+Mod: 0 [FileSys.FileSys]  
+	Creating file: create(/vm/1,65536)
+Mod: 0 [FileSys.FileSys]  
+	New file size 64 blocks
+Mod: 0 [FileSys.FileSys]  
+	Inode(Id(0),Device(0),BlockCount(64),OpenCount(0),LinkCount(1))
+	  File `/vm/1', blocksize=64 created on device 0
+Sim: 0 [IFLModules.FileSys]  
+	System call create(`/vm/1')  succeeded, as expected
+Sim: 0 [IFLModules.OpenFile]  
+	System call open(`/vm/1')
+Sim: 0 [Tasks.TaskCB]  
+	Adding Openfile(0:1/0) to the open files table of Task(1/L)
+Mod: 0 [FileSys.OpenFile]  
+	File `/vm/1' opened 1 times
+Sim: 0 [IFLModules.OpenFile]  
+	File `/vm/1' opened as Openfile(0:1/0)
+Sim: 0 [IFLModules.FileSys]  
+	System call open(`/vm/1')  succeeded, as expected
+Sim: 0 [IFLModules.ThreadCB]  
+	Trying to create new thread for Task(1/L)
+Mod: 0 [Threads.ThreadCB]  
+	Created Thread(0:null/NN)
+Mod: 0 [Threads.ThreadCB]  
+	Successfully added Thread(0:1/RD) to Task(1/L)
+Sim: 0 [IFLModules.ThreadCB]  
+	Created new thread Thread(0:1/RD)
+Sim: 0 [IFLModules.ThreadCB]  
+	Entering dispatch(); current running thread is null
+Mod: 0 [Threads.ThreadCB]  
+	Dispatching Thread(0:1/RU)
+Sim: 0 [IFLModules.ThreadCB]  
+	Dispatching Thread(0:1/RU)
+Sim: 0 [IFLModules.ThreadCB]  
+	Leaving dispatch()
+Sim: 11 [IFLModules.FileSys]  
+	System call delete(`/etc/go/Oh,my/go')
+Mod: 11 [FileSys.FileSys]  
+	File `/etc/go/Oh,my/go' doesn't exist -- cannot delete
+Sim: 11 [IFLModules.FileSys]  
+	System call delete(`/etc/go/Oh,my/go')  failed, as expected
+Sim: 18 [IFLModules.MMU]  
+	Call: MMU.refer(Address(12617),MemoryWrite,Thread(0:1/RU))
+	  [Page(12:1/null),null,ValidFlag(OSP)=false,ValidFlag(Student)=false,ValidatingThread=null]

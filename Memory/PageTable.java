@@ -34,10 +34,10 @@ public class PageTable extends IflPageTable
     {
         // your code goes here
         super(ownerTask);
-        int max_bits=MMU.getPageAddressBits();
-        //PageTableEntry[] 
-        this.pages = new PageTableEntry[max_bits];
-        for(int i=0;i<max_bits;i++)
+        int max_page = (int) Math.pow(2.0,MMU.getPageAddressBits());
+        // PageTableEntry[] 
+        this.pages = new PageTableEntry[max_page];
+        for(int i=0; i<max_page; i++)
         {
             pages[i] = new PageTableEntry(this,i);
         }

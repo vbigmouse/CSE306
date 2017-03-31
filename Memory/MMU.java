@@ -61,8 +61,44 @@ public class MMU extends IflMMU
     static public PageTableEntry do_refer(int memoryAddress,
 					  int referenceType, ThreadCB thread)
     {
-        // your code goes here
-        return null;
+        // calculate which page and offset.
+        int virtual_address_bits = MMU.getVirtualAddressBits();
+        int page_address_bits = MMU.getPageAddressBits();
+        int offset = memoryAddress << page_address_bits;
+        int page_no = memoryAddress >>> offset;
+        PageTableEntry page = MMU.getPTBR().pages[page_no];
+
+        // if not valid, do pagefault handling 
+        if(!page.isValid())
+            return null;
+
+        // check if thread was killed
+        if(thread.getStatus() == ThreadKill)
+            return page;
+        
+        // set frame flags
+        FrameTableEntry frame = page.getFrame();
+        switch(referenceType)
+        {
+            case MemoryRead:
+                System.out.println("[MMU][do_refer] Do memory read.");
+                frame.setReferenced(true);
+            break;
+            case MemoryWrite:
+                System.out.println("[MMU][do_refer] Do memory write.");
+                frame.setReferenced(true);
+                frame.setDirty(true);
+            break;
+            case MemoryLock:
+                System.out.println("[MMU][do_refer] Do memory lock.");
+                frame.setReferenced(true);
+            break;
+            default:
+                System.out.println("[Error][MMU][do_refer] Invalid reference type!");
+            break;
+        }
+        
+        return page;
     }
 
     /** Called by OSP after printing an error message. The student can
