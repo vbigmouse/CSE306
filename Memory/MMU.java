@@ -8,6 +8,9 @@
 package osp.Memory;
 
 import java.util.*;
+
+import com.sun.org.apache.xml.internal.serializer.ElemDesc;
+
 import osp.IFLModules.*;
 import osp.Threads.*;
 import osp.Tasks.*;
@@ -33,9 +36,16 @@ public class MMU extends IflMMU
     public static void init()
     {
         // your code goes here
-        int frame_table_size = MMU.getFrameTableSize();
+        frame_table_size = MMU.getFrameTableSize();
+        frame_reference_queue = new LinkedList<>();
         for(int i=0; i<frame_table_size; i++)
+        {
             setFrame(i,new FrameTableEntry(i));
+            frame_reference_queue.add(i);
+        }
+        virtual_address_bits = MMU.getVirtualAddressBits();
+        page_address_bits = MMU.getPageAddressBits();
+        //PageFaultHandler.init();
 
     }
 
@@ -62,15 +72,27 @@ public class MMU extends IflMMU
 					  int referenceType, ThreadCB thread)
     {
         // calculate which page and offset.
-        int virtual_address_bits = MMU.getVirtualAddressBits();
-        int page_address_bits = MMU.getPageAddressBits();
+        //int virtual_address_bits = MMU.getVirtualAddressBits();
+        //int page_address_bits = MMU.getPageAddressBits();
         int offset = memoryAddress << page_address_bits;
         int page_no = memoryAddress >>> offset;
         PageTableEntry page = MMU.getPTBR().pages[page_no];
 
         // if not valid, do pagefault handling 
         if(!page.isValid())
-            return null;
+        {
+            if(page.getValidatingThread() == null)
+            {
+                // setInterruptType fields.
+                InterruptVector.setInterruptType(PageFault);
+                InterruptVector.setThread(thread);
+                InterruptVector.setReferenceType(referenceType);
+                CPU.interrupt(PageFault);
+            }
+            else
+                thread.suspend(page); // suspend for event page
+        
+        }
 
         // check if thread was killed
         if(thread.getStatus() == ThreadKill)
@@ -131,7 +153,10 @@ public class MMU extends IflMMU
     /*
        Feel free to add methods/fields to improve the readability of your code
     */
-
+    public static int frame_table_size;// = MMU.getFrameTableSize();
+    public static int virtual_address_bits;// = MMU.getVirtualAddressBits();
+    public static int page_address_bits;// = MMU.getPageAddressBits();
+    public static List<Integer> frame_reference_queue;
 }
 
 /*

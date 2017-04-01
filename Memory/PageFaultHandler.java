@@ -7,6 +7,9 @@
 
 package osp.Memory;
 import java.util.*;
+
+import com.sun.net.httpserver.Authenticator.Failure;
+
 import osp.Hardware.*;
 import osp.Threads.*;
 import osp.Tasks.*;
@@ -83,15 +86,108 @@ public class PageFaultHandler extends IflPageFaultHandler
 					 int referenceType,
 					 PageTableEntry page)
     {
-        // your code goes here
-        return 0;
+        // if already validating, return.
+        if(page.getValidatingThread()!=null)
+            return FAILURE;
+        else
+            page.setValidatingThread(thread);
+        
+        // check if there is available frame to swap.
+        FrameTableEntry frame;
+        int available_frame_index = 0;
+        do
+        {
+            frame = MMU.getFrame(MMU.frame_reference_queue.get(available_frame_index)); // search available frame in reference queue head
+            if(!frame.isReserved() && frame.getLockCount()==0)
+                break;    
+            available_frame_index++;
+        }while(available_frame_index < MMU.frame_table_size);
+        
+        if(available_frame_index == MMU.frame_table_size)
+        {
+            page.setValidatingThread(null);
+            return NotEnoughMemory;
+        }
+
+        // start pagefault handle process. suspend on system event.
+        SystemEvent handle_page_fault_event = new SystemEvent("[PageFaultHandler][do_handlePageFault]");
+        thread.suspend(handle_page_fault_event);
+
+        // reserve frame for page
+        frame.setReserved(thread.getTask());
+
+        // check if frame is not free
+        if(frame.getPage()!=null)
+        {
+            // check if frame is dirty, swap-out 
+            if(frame.isDirty()) 
+                frame.setPage(null);
+
+
+            FreeFrame(frame);
+
+        }
+        // swap-in 
+
+        // set frame for page
+        // set page for frame
+        // update lr queue
+        
+
+        // resume threads waiting for this page
+        page.notifyThreads();
+        // resume thread which cause pagefault  
+        handle_page_fault_event.notifyThreads();
+
+        ThreadCB.dispatch();
+
+        // set referenced, move to end of ref. queue
+        frame.setReferenced(true);
+        MoveToLast(MMU.frame_reference_queue, available_frame_index);
+
+        // reserve frame for page
+        frame.setUnreserved(thread.getTask());
+        page.setValidatingThread(null);
+        if(thread.getStatus() == ThreadKill)
+            return FAILURE;
+        else
+            return SUCCESS;
     }
 
-
+    //public static List<Integer> frame_reference_queue;
     /*
        Feel free to add methods/fields to improve the readability of your code
     */
+    public static void FreeFrame(FrameTableEntry frame)
+    {
+        frame.setPage(null);    
+        frame.setDirty(false);
+        frame.setReferenced(false);
+    }
 
+    public static int SwapOut(PageTableEntry page, ThreadCB thread)
+    {
+        // open file which the memory page will be write to
+        OpenFile file = thread.getTask().getSwapFile();
+        
+        // block number = page id
+        int block = page.getID();
+        
+        file.write(block,page,thread);
+        return SUCCESS;
+    }
+
+
+    public static void MoveToLast(List<Integer> list,int index)
+    {
+        int tmp = list.get(index);
+        list.remove(index);
+        list.add(tmp);
+    }
+/*    public init()
+    {
+        frame_reference_queue = new LinkedList<>();
+    }*/
 }
 
 /*
