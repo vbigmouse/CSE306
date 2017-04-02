@@ -51,9 +51,9 @@ public class PageTable extends IflPageTable
     */
     public void do_deallocateMemory()
     {
-        // your code goes here
-        int max_bits = MMU.getPageAddressBits();
-        for(int i=0; i<max_bits; i++)
+        System.out.println("[PageTable][do_deallocateMemory] this " + this.toString());
+        int max_page = (int) Math.pow(2.0,MMU.getPageAddressBits());
+        for(int i=0; i<max_page; i++)
         {
             // clear flags
             PageTableEntry page_table_entry = this.pages[i]; 
@@ -63,12 +63,17 @@ public class PageTable extends IflPageTable
                 frame_table_entry.setReferenced(false);
                 frame_table_entry.setDirty(false);
                 frame_table_entry.setPage(null);
+                System.out.println("[PageTable][do_deallocateMemory] frame_table_entry " + frame_table_entry.toString());
                 TaskCB owner_task = frame_table_entry.getReserved();
                 if(owner_task != null)
+                {
                     frame_table_entry.setUnreserved(owner_task);
+                    System.out.println("[PageTable][do_deallocateMemory] owner_task " + owner_task.toString());   
+                }
+                     
             }
         }
-
+        
     }
 
 

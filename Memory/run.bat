@@ -11,5 +11,5 @@ else goto compile
     goto end
 :compile_run
     javac -g -classpath .;OSP.jar -d . *.java
-    java -classpath .;OSP.jar osp.OSP
+    java -classpath .;OSP.jar osp.OSP -noGUI
 :end

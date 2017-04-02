@@ -74,8 +74,11 @@ public class MMU extends IflMMU
         // calculate which page and offset.
         //int virtual_address_bits = MMU.getVirtualAddressBits();
         //int page_address_bits = MMU.getPageAddressBits();
-        int offset = memoryAddress << page_address_bits;
-        int page_no = memoryAddress >>> offset;
+        int offset_bits = virtual_address_bits - page_address_bits;
+        int page_no = memoryAddress >>> offset_bits;
+        int offset = memoryAddress & ~(page_no << offset_bits);
+        
+        System.out.println("[MMU][do_refer] address = " + memoryAddress + " offset = " + offset + " page no = " + page_no);
         PageTableEntry page = MMU.getPTBR().pages[page_no];
 
         // if not valid, do pagefault handling 
@@ -84,10 +87,13 @@ public class MMU extends IflMMU
             if(page.getValidatingThread() == null)
             {
                 // setInterruptType fields.
+                System.out.println("[MMU][do_refer] setInterruptType");
                 InterruptVector.setInterruptType(PageFault);
                 InterruptVector.setThread(thread);
+                InterruptVector.setPage(page);
                 InterruptVector.setReferenceType(referenceType);
                 CPU.interrupt(PageFault);
+                System.out.println("[MMU][do_refer] return from interrupt");
             }
             else
                 thread.suspend(page); // suspend for event page

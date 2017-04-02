@@ -58,6 +58,7 @@ public class PageTableEntry extends IflPageTableEntry
      */
     public int do_lock(IORB iorb)
     {
+        System.out.println("[Info][PageTableEntry][do_lock] iorb " + iorb.toString() + " this " + this.toString());
         // check page in main memory is valid
         if(!this.isValid())
         {
@@ -65,23 +66,30 @@ public class PageTableEntry extends IflPageTableEntry
 
             // check if already under pagefault handling
             ThreadCB validating_thread = this.getValidatingThread();
-            ThreadCB current_thread = this.getTask().getCurrentThread();
+            ThreadCB requrest_thread = iorb.getThread();
             
+            if(validating_thread != null)
+                System.out.println("[Info][PageTableEntry][do_lock] validating_thread = " + validating_thread.toString());
+            if(requrest_thread != null)
+                System.out.println("[Info][PageTableEntry][do_lock] requrest_thread = " + requrest_thread.toString());
+
             // if not under pagefault, do pagefault handling
             if(validating_thread == null)
             {
-                if(PageFaultHandler.handlePageFault(current_thread, MemoryLock, this) != SUCCESS);
+                if(PageFaultHandler.handlePageFault(requrest_thread, MemoryLock, this) != SUCCESS);
                     System.out.println("[Error][PageTableEntry][do_lock] PageFaultHandler fail!");
             }
             // request pagefault by other task, suspend until page become valid or task is killed
-            else if(validating_thread != current_thread)
+            else if(validating_thread != requrest_thread)
             {
-                current_thread.suspend(this);
+                System.out.println("[Info][PageTableEntry][do_lock] Suspend request thread");
+                requrest_thread.suspend(this);
                 if(!this.isValid())
                     return FAILURE;
                     
             }
             // request pagefault by same task, increase lock count
+            System.out.println("[Info][PageTableEntry][do_lock] Request pagefault by same task, increase lock count");
             /*
             else
             {
@@ -94,7 +102,9 @@ public class PageTableEntry extends IflPageTableEntry
             }
             */
         }
+        
         FrameTableEntry frame_table_entry = this.getFrame();
+        System.out.println("[Info][PageTableEntry][do_lock] Get frame " + frame_table_entry.toString());
         int lock_count = frame_table_entry.getLockCount();
         frame_table_entry.incrementLockCount();
         if (frame_table_entry.getLockCount() != lock_count)
@@ -113,6 +123,7 @@ public class PageTableEntry extends IflPageTableEntry
     public void do_unlock()
     {
         // unlock frame
+        System.out.println("[PageTableEntry][do_unlock] this " + this.toString());
         if( this.getFrame().getLockCount() == 0 )
             System.out.println("[Error][PageTableEntry][do_unlock] Invalid lock number!");
         else

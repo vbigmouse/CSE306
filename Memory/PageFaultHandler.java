@@ -86,6 +86,8 @@ public class PageFaultHandler extends IflPageFaultHandler
 					 int referenceType,
 					 PageTableEntry page)
     {
+        System.out.println("[PageFaultHandler][do_handlePageFault] start do_handlePageFault( " + thread.toString() 
+                + " " + referenceType + " " + page );
         // if already validating, return.
         if(page.getValidatingThread()!=null)
             return FAILURE;
@@ -108,50 +110,89 @@ public class PageFaultHandler extends IflPageFaultHandler
             page.setValidatingThread(null);
             return NotEnoughMemory;
         }
+        System.out.println("[PageFaultHandler][do_handlePageFault] Found available frame ");
 
         // start pagefault handle process. suspend on system event.
         SystemEvent handle_page_fault_event = new SystemEvent("[PageFaultHandler][do_handlePageFault]");
         thread.suspend(handle_page_fault_event);
 
+        System.out.println("[PageFaultHandler][do_handlePageFault] Suspend on system event ");
+
         // reserve frame for page
         frame.setReserved(thread.getTask());
 
+        System.out.println("[PageFaultHandler][do_handlePageFault] page " + page );
+
         // check if frame is not free
-        if(frame.getPage()!=null)
+        PageTableEntry victim_page = frame.getPage();
+        if( victim_page!= null)
         {
             // check if frame is dirty, swap-out 
+            System.out.println("[PageFaultHandler][do_handlePageFault] page " + page +" setframe " + frame);
             if(frame.isDirty()) 
-                frame.setPage(null);
-
-
+                SwapOut(victim_page,thread);
             FreeFrame(frame);
+            victim_page.setValid(false);
+            victim_page.setFrame(null);
+            /*if(thread.getStatus() == ThreadKill)
+            {
+                // set frame for page
+                page.setFrame(null);
+                // set page for frame
+                frame.setPage(null);
+                frame.setUnreserved(thread.getTask());
+                page.setValidatingThread(null);
+                return FAILURE;
+            }*/
 
         }
-        // swap-in 
 
         // set frame for page
+        page.setFrame(frame);
         // set page for frame
-        // update lr queue
-        
+        frame.setPage(page);
+        System.out.println("[PageFaultHandler][do_handlePageFault] page " + page );
+
+        // swap-in 
+        SwapIn(page,thread);
+
+        /*if(thread.getStatus() == ThreadKill)
+        {
+            // set frame for page
+            page.setFrame(null);
+            // set page for frame
+            frame.setPage(null);
+            frame.setUnreserved(thread.getTask());
+            page.setValidatingThread(null);
+            return FAILURE;
+        }*/
+
 
         // resume threads waiting for this page
         page.notifyThreads();
         // resume thread which cause pagefault  
         handle_page_fault_event.notifyThreads();
 
-        ThreadCB.dispatch();
-
+        
+        // set page valid
+        page.setValid(true);
         // set referenced, move to end of ref. queue
         frame.setReferenced(true);
         MoveToLast(MMU.frame_reference_queue, available_frame_index);
-
+        ThreadCB.dispatch();
         // reserve frame for page
         frame.setUnreserved(thread.getTask());
         page.setValidatingThread(null);
         if(thread.getStatus() == ThreadKill)
+        {
+            System.out.println(" Thread already killed");
             return FAILURE;
+        }
         else
+        {
+            System.out.println(" Thread do_handlePageFault Success");            
             return SUCCESS;
+        }
     }
 
     //public static List<Integer> frame_reference_queue;
@@ -177,6 +218,17 @@ public class PageFaultHandler extends IflPageFaultHandler
         return SUCCESS;
     }
 
+    public static int SwapIn(PageTableEntry page, ThreadCB thread)
+    {
+        // open file which the memory page will be write to
+        OpenFile file = thread.getTask().getSwapFile();
+        
+        // block number = page id
+        int block = page.getID();
+        
+        file.read(block,page,thread);
+        return SUCCESS;
+    }
 
     public static void MoveToLast(List<Integer> list,int index)
     {
