@@ -78,7 +78,7 @@ public class MMU extends IflMMU
         int page_no = memoryAddress >>> offset_bits;
         int offset = memoryAddress & ~(page_no << offset_bits);
         
-        System.out.println("[MMU][do_refer] address = " + memoryAddress + " offset = " + offset + " page no = " + page_no);
+        System.out.println("[MMU][do_refer] address = " + memoryAddress + " offset = " + offset + " page no = " + page_no + " " + thread.toString());
         PageTableEntry page = MMU.getPTBR().pages[page_no];
 
         // if not valid, do pagefault handling 

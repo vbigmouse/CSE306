@@ -63,7 +63,8 @@ public class PageTable extends IflPageTable
                 frame_table_entry.setReferenced(false);
                 frame_table_entry.setDirty(false);
                 frame_table_entry.setPage(null);
-                System.out.println("[PageTable][do_deallocateMemory] frame_table_entry " + frame_table_entry.toString());
+                System.out.println("[PageTable][do_deallocateMemory]  page_table_entry" + page_table_entry.toString() + 
+                                                                    " frame_table_entry " + frame_table_entry.toString());
                 TaskCB owner_task = frame_table_entry.getReserved();
                 if(owner_task != null)
                 {

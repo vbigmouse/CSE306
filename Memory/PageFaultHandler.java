@@ -87,7 +87,7 @@ public class PageFaultHandler extends IflPageFaultHandler
 					 PageTableEntry page)
     {
         System.out.println("[PageFaultHandler][do_handlePageFault] start do_handlePageFault( " + thread.toString() 
-                + " " + referenceType + " " + page );
+                + " " + referenceType + " " + page + " )");
         // if already validating, return.
         if(page.getValidatingThread()!=null)
             return FAILURE;
@@ -120,6 +120,7 @@ public class PageFaultHandler extends IflPageFaultHandler
 
         // reserve frame for page
         frame.setReserved(thread.getTask());
+        System.out.println("[PageFaultHandler][do_handlePageFault] set frame Reserved by " + frame.getReserved().toString());
 
         System.out.println("[PageFaultHandler][do_handlePageFault] page " + page );
 
@@ -128,60 +129,64 @@ public class PageFaultHandler extends IflPageFaultHandler
         if( victim_page!= null)
         {
             // check if frame is dirty, swap-out 
-            System.out.println("[PageFaultHandler][do_handlePageFault] page " + page +" setframe " + frame);
+            System.out.println("[PageFaultHandler][do_handlePageFault] victim_page " + victim_page);
             if(frame.isDirty()) 
+            {
+                System.out.println("[PageFaultHandler][do_handlePageFault] " + frame.toString() + " is dirty, do swap-out, " + thread.toString() );
                 SwapOut(victim_page,thread);
+                System.out.println("[PageFaultHandler][do_handlePageFault] Swap-out finish");
+            }
             FreeFrame(frame);
             victim_page.setValid(false);
             victim_page.setFrame(null);
-            /*if(thread.getStatus() == ThreadKill)
+
+            if(thread.getStatus() == ThreadKill)
             {
-                // set frame for page
-                page.setFrame(null);
-                // set page for frame
-                frame.setPage(null);
-                frame.setUnreserved(thread.getTask());
+                System.out.println("[PageFaultHandler][do_handlePageFault] Thread " + thread.toString()+ " already killed after swap-out");
+                // unreserve frame for page
+                if(frame.isReserved())
+                    frame.setUnreserved(thread.getTask());
                 page.setValidatingThread(null);
                 return FAILURE;
-            }*/
-
+            }             
         }
-
+        System.out.println("[PageFaultHandler][do_handlePageFault] page " + page +" setframe " + frame);
         // set frame for page
         page.setFrame(frame);
         // set page for frame
         frame.setPage(page);
         System.out.println("[PageFaultHandler][do_handlePageFault] page " + page );
-
+        System.out.println("[PageFaultHandler][do_handlePageFault] frame isReserved()  " + frame.isReserved());
+        if(!frame.isReserved())
+            frame.setReserved(thread.getTask());
         // swap-in 
         SwapIn(page,thread);
 
-        /*if(thread.getStatus() == ThreadKill)
-        {
-            // set frame for page
-            page.setFrame(null);
-            // set page for frame
-            frame.setPage(null);
-            frame.setUnreserved(thread.getTask());
-            page.setValidatingThread(null);
-            return FAILURE;
-        }*/
-
+        System.out.println("[PageFaultHandler][do_handlePageFault] thread " + thread.toString() + " status = " + thread.getStatus() );
 
         // resume threads waiting for this page
         page.notifyThreads();
         // resume thread which cause pagefault  
         handle_page_fault_event.notifyThreads();
 
-        
+        if(thread.getStatus() == ThreadKill)
+        {
+            System.out.println("[PageFaultHandler][do_handlePageFault] Thread already killed after swap-in");
+            // unreserve frame for page
+            if(frame.isReserved())
+                frame.setUnreserved(thread.getTask());
+            page.setValidatingThread(null);
+            return FAILURE;
+        }        
         // set page valid
         page.setValid(true);
         // set referenced, move to end of ref. queue
         frame.setReferenced(true);
         MoveToLast(MMU.frame_reference_queue, available_frame_index);
         ThreadCB.dispatch();
-        // reserve frame for page
-        frame.setUnreserved(thread.getTask());
+        // unreserve frame for page
+        if(frame.isReserved())
+            frame.setUnreserved(thread.getTask());
         page.setValidatingThread(null);
         if(thread.getStatus() == ThreadKill)
         {

@@ -76,8 +76,9 @@ public class PageTableEntry extends IflPageTableEntry
             // if not under pagefault, do pagefault handling
             if(validating_thread == null)
             {
-                if(PageFaultHandler.handlePageFault(requrest_thread, MemoryLock, this) != SUCCESS);
-                    System.out.println("[Error][PageTableEntry][do_lock] PageFaultHandler fail!");
+                System.out.println("[Info][PageTableEntry][do_lock] validating_thread is null, handlePageFault");
+                if(PageFaultHandler.handlePageFault(requrest_thread, MemoryLock, this) != SUCCESS)
+                    System.out.println("[Error][PageTableEntry][do_lock] PageFaultHandler fail! iorb = " + iorb.toString());
             }
             // request pagefault by other task, suspend until page become valid or task is killed
             else if(validating_thread != requrest_thread)
@@ -89,7 +90,8 @@ public class PageTableEntry extends IflPageTableEntry
                     
             }
             // request pagefault by same task, increase lock count
-            System.out.println("[Info][PageTableEntry][do_lock] Request pagefault by same task, increase lock count");
+            else
+                System.out.println("[Info][PageTableEntry][do_lock] Request pagefault by same task, increase lock count");
             /*
             else
             {
@@ -105,10 +107,14 @@ public class PageTableEntry extends IflPageTableEntry
         
         FrameTableEntry frame_table_entry = this.getFrame();
         System.out.println("[Info][PageTableEntry][do_lock] Get frame " + frame_table_entry.toString());
+        System.out.println("[Info][PageTableEntry][do_lock] Valid = " + this.isValid());
         int lock_count = frame_table_entry.getLockCount();
         frame_table_entry.incrementLockCount();
         if (frame_table_entry.getLockCount() != lock_count)
+        {
+            System.out.println("[Info][PageTableEntry][do_lock] lockcount = " + lock_count);    
             return SUCCESS;
+        }
         else
             return FAILURE;
 
