@@ -46,6 +46,7 @@ public class MMU extends IflMMU
         virtual_address_bits = MMU.getVirtualAddressBits();
         page_address_bits = MMU.getPageAddressBits();
         //PageFaultHandler.init();
+        Daemon.create("Page Clean Daemon" , new PageCleanDaemon(),20000);
 
     }
 

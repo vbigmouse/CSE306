@@ -114,15 +114,15 @@ public class PageFaultHandler extends IflPageFaultHandler
 
         // start pagefault handle process. suspend on system event.
         SystemEvent handle_page_fault_event = new SystemEvent("[PageFaultHandler][do_handlePageFault]");
+        System.out.println("[PageFaultHandler][do_handlePageFault] " + thread.toString() + " suspend on system event ");
         thread.suspend(handle_page_fault_event);
-
-        System.out.println("[PageFaultHandler][do_handlePageFault] Suspend on system event ");
+        System.out.println("[PageFaultHandler][do_handlePageFault] " + thread.toString() + " rsesume from system event ");
 
         // reserve frame for page
+        System.out.println("[PageFaultHandler][do_handlePageFault] reserve " + frame.toString() + " for " + page.toString() );
         frame.setReserved(thread.getTask());
-        System.out.println("[PageFaultHandler][do_handlePageFault] set frame Reserved by " + frame.getReserved().toString());
+        System.out.println("[PageFaultHandler][do_handlePageFault] set " + frame.toString() + " Reserved by " + frame.getReserved().toString());
 
-        System.out.println("[PageFaultHandler][do_handlePageFault] page " + page );
 
         // check if frame is not free
         PageTableEntry victim_page = frame.getPage();
@@ -132,13 +132,12 @@ public class PageFaultHandler extends IflPageFaultHandler
             System.out.println("[PageFaultHandler][do_handlePageFault] victim_page " + victim_page);
             if(frame.isDirty()) 
             {
-                System.out.println("[PageFaultHandler][do_handlePageFault] " + frame.toString() + " is dirty, do swap-out, " + thread.toString() );
+                System.out.println("[PageFaultHandler][do_handlePageFault] " + frame.toString() + 
+                                                                        " is dirty, do swap-out " + thread.toString() );
                 SwapOut(victim_page,thread);
-                System.out.println("[PageFaultHandler][do_handlePageFault] Swap-out finish");
+                System.out.println("[PageFaultHandler][do_handlePageFault] Swap-out " + frame.toString() + " " +
+                                                                     victim_page.toString() + " " + thread.toString() + " finish");
             }
-            FreeFrame(frame);
-            victim_page.setValid(false);
-            victim_page.setFrame(null);
 
             if(thread.getStatus() == ThreadKill)
             {
@@ -148,21 +147,23 @@ public class PageFaultHandler extends IflPageFaultHandler
                     frame.setUnreserved(thread.getTask());
                 page.setValidatingThread(null);
                 return FAILURE;
-            }             
+            }    
+            FreeFrame(frame);
+            victim_page.setValid(false);
+            victim_page.setFrame(null);         
         }
-        System.out.println("[PageFaultHandler][do_handlePageFault] page " + page +" setframe " + frame);
-        // set frame for page
+        System.out.println("[PageFaultHandler][do_handlePageFault] set " + page + " and " + frame);
+        // set frame for page, set page for frame
         page.setFrame(frame);
-        // set page for frame
         frame.setPage(page);
-        System.out.println("[PageFaultHandler][do_handlePageFault] page " + page );
-        System.out.println("[PageFaultHandler][do_handlePageFault] frame isReserved()  " + frame.isReserved());
+
         if(!frame.isReserved())
             frame.setReserved(thread.getTask());
         // swap-in 
+        System.out.println("[PageFaultHandler][do_handlePageFault] " + frame.toString() + " " + page.toString() + " do swap-in " + thread.toString() );
         SwapIn(page,thread);
+        System.out.println("[PageFaultHandler][do_handlePageFault] " + frame.toString() + " " + page.toString() + " swap-in finish " + thread.toString() );
 
-        System.out.println("[PageFaultHandler][do_handlePageFault] thread " + thread.toString() + " status = " + thread.getStatus() );
 
         // resume threads waiting for this page
         page.notifyThreads();
@@ -184,23 +185,24 @@ public class PageFaultHandler extends IflPageFaultHandler
         frame.setReferenced(true);
         MoveToLast(MMU.frame_reference_queue, available_frame_index);
         ThreadCB.dispatch();
+
         // unreserve frame for page
         if(frame.isReserved())
             frame.setUnreserved(thread.getTask());
+
         page.setValidatingThread(null);
         if(thread.getStatus() == ThreadKill)
         {
-            System.out.println(" Thread already killed");
+            System.out.println("[PageFaultHandler][do_handlePageFault] Thread already killed");
             return FAILURE;
         }
         else
         {
-            System.out.println(" Thread do_handlePageFault Success");            
+            System.out.println("[PageFaultHandler][do_handlePageFault] Thread do_handlePageFault Success");            
             return SUCCESS;
         }
     }
 
-    //public static List<Integer> frame_reference_queue;
     /*
        Feel free to add methods/fields to improve the readability of your code
     */
@@ -215,9 +217,10 @@ public class PageFaultHandler extends IflPageFaultHandler
     {
         // open file which the memory page will be write to
         OpenFile file = thread.getTask().getSwapFile();
-        
+        System.out.println("[PageFaultHandler][SwapOut] page " + page.toString() + " frame " + page.getFrame().toString() + "file " + file.toString());            
         // block number = page id
         int block = page.getID();
+        System.out.println("[PageFaultHandler][SwapOut] block no " + block);    
         
         file.write(block,page,thread);
         return SUCCESS;
