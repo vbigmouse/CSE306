@@ -43,12 +43,6 @@ public class PageTable extends IflPageTable
         }
     }
 
-    /**
-       Frees up main memory occupied by the task.
-       Then unreserves the freed pages, if necessary.
-
-       @OSPProject Memory
-    */
     public void do_deallocateMemory()
     {
         System.out.println("[PageTable][do_deallocateMemory] this " + this.toString());
@@ -60,9 +54,7 @@ public class PageTable extends IflPageTable
             FrameTableEntry frame_table_entry = page_table_entry.getFrame();
             if(frame_table_entry != null) // not isValid since it ignores reserved but not valid frames.
             {
-                frame_table_entry.setReferenced(false);
-                frame_table_entry.setDirty(false);
-                frame_table_entry.setPage(null);
+                PageFaultHandler.FreeFrame(frame_table_entry);
                 System.out.println("[PageTable][do_deallocateMemory]  page_table_entry " + page_table_entry.toString() + 
                                                                     " frame_table_entry " + frame_table_entry.toString());
                 TaskCB owner_task = frame_table_entry.getReserved();
@@ -77,13 +69,5 @@ public class PageTable extends IflPageTable
         
     }
 
-
-    /*
-       Feel free to add methods/fields to improve the readability of your code
-    */
-
 }
 
-/*
-      Feel free to add local classes to improve the readability of your code
-*/
