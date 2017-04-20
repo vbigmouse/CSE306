@@ -5,15 +5,6 @@
  *                                              109971346 Hung-Ruey Chen
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 package osp.Devices;
-
-/**
-    This class stores all pertinent information about a device in
-    the device table.  This class should be sub-classed by all
-    device classes, such as the Disk class.
-
-    @OSPProject Devices
-*/
-
 import osp.IFLModules.*;
 import osp.Threads.*;
 import osp.Utilities.*;
@@ -72,8 +63,25 @@ public class Device extends IflDevice
     */
     public int do_enqueueIORB(IORB iorb)
     {
-        // your code goes here
 
+        iorb.getPage().lock(iorb);
+        iorb.getOpenFile().incrementIORBCount();
+        int block_no = iorb.getBlockNumber();
+        System.out.println("bytes per block " + Math.pow(2,MMU.getVirtualAddressBits()-MMU.getPageAddressBits()-3));
+        int bytes_per_block = (int)Math.pow(2,MMU.getVirtualAddressBits()-MMU.getPageAddressBits()-3); // bytes per block
+        Disk disk = (Disk)Device.get(iorb.getID());
+    
+        int sec_per_block = disk.getBytesPerSector();
+        int cylinder = block_no * sec_per_block / disk.getSectorsPerTrack()/disk.getPlatters();
+        System.out.println("cylinder " +cylinder);
+        iorb.setCylinder(cylinder);
+        if (iorb.getThread().getStatus() == ThreadKill)
+            return FAILURE;
+        if (!disk.isBusy())
+            disk.startIO(iorb);
+  //      else
+  //          iorbQueue.push(iorb); 
+        return SUCCESS;
     }
 
     /**
@@ -85,7 +93,7 @@ public class Device extends IflDevice
     public IORB do_dequeueIORB()
     {
         // your code goes here
-
+        return null;
     }
 
     /**
