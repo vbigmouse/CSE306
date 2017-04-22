@@ -29,7 +29,8 @@ public class Device extends IflDevice
     public Device(int id, int numberOfBlocks)
     {
         super(id,numberOfBlocks);
-
+        System.out.println("Device()");
+        this.iorbQueue = new IOQueue();
     }
 
     /**
@@ -41,7 +42,9 @@ public class Device extends IflDevice
     public static void init()
     {
         // your code goes here
-
+        System.out.println("Device.init ");
+        
+        System.out.println("Device.init2" );
     }
 
     /**
@@ -66,21 +69,35 @@ public class Device extends IflDevice
 
         iorb.getPage().lock(iorb);
         iorb.getOpenFile().incrementIORBCount();
-        int block_no = iorb.getBlockNumber();
-        System.out.println("bytes per block " + Math.pow(2,MMU.getVirtualAddressBits()-MMU.getPageAddressBits()-3));
-        int bytes_per_block = (int)Math.pow(2,MMU.getVirtualAddressBits()-MMU.getPageAddressBits()-3); // bytes per block
+        
+        System.out.println("iorb " + iorb.toString());
         Disk disk = (Disk)Device.get(iorb.getID());
-    
-        int sec_per_block = disk.getBytesPerSector();
+        
+        int block_no = iorb.getBlockNumber();
+        int bytes_per_block = (int)Math.pow(2,MMU.getVirtualAddressBits()-MMU.getPageAddressBits()); // bytes per block
+        System.out.println("bytes_per_block "+bytes_per_block+" getBytesPerSector "+disk.getBytesPerSector());
+        int sec_per_block = bytes_per_block / disk.getBytesPerSector();
+        System.out.println("block_per_sec "+sec_per_block+" trackpercylinder "+disk.getPlatters() + " getSectorsPerTrack "+disk.getSectorsPerTrack());
         int cylinder = block_no * sec_per_block / disk.getSectorsPerTrack()/disk.getPlatters();
-        System.out.println("cylinder " +cylinder);
+        System.out.println("cylinder " + cylinder);
         iorb.setCylinder(cylinder);
+        IOQueue<Integer> qu=new IOQueue<Integer>();
+        System.out.println("isEmpty "+qu.isEmpty());
+        
+        disk.getHeadPosition();   
+        qu.insert(4);
+        qu.insert(2);
+        qu.insert(3);
+        qu.insert(1);     
+        System.out.println("list " + qu.toString());
+        Collections.sort(qu.getSub(0,3));
+        System.out.println("list " + qu.toString());
         if (iorb.getThread().getStatus() == ThreadKill)
             return FAILURE;
         if (!disk.isBusy())
             disk.startIO(iorb);
-  //      else
-  //          iorbQueue.push(iorb); 
+        else
+            iorbQueue.isEmpty(); 
         return SUCCESS;
     }
 
@@ -141,10 +158,6 @@ public class Device extends IflDevice
 
     }
 
-
-    /*
-       Feel free to add methods/fields to improve the readability of your code
-    */
 
 }
 

@@ -1,5 +1,5 @@
 Sim: 0 [EventEngine.EventDriver]  
-	Simulation Start Time: Thu Apr 20 00:20:31 EDT 2017
+	Simulation Start Time: Sat Apr 22 01:46:13 EDT 2017
 	Parameter file: Misc\params.osp
 
 	Legend:
@@ -107,30 +107,66 @@ Mod: 18 [FileSys.OpenFile]
 	Creating IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1))
 Sim: 18 [Hardware.Disk]  
 	Enqueueing IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1))
-Sim: 18 <<Error!>> [Hardware.Disk]  
-	In enqueueIORB: uninitialized iorbQueue
+Sim: 18 [Hardware.Disk]  
+	Thread(0:1/W1) requests to enqueue IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1))
+Sim: 18 [Memory.PageTableEntry]  
+	Entering lock(Page(12:1/0),IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Mod: 18 [Memory.PageTableEntry]  
+	Entering do_lock(Page(12:1/0),IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Mod: 18 [Memory.PageTableEntry]  
+	Locking Page(12:1/0) by Thread(0:1/W1)
+	  This thread has already caused Page(12:1/0) to pagefault
+	  No need to create a pagefault again -- returning immediately
+Mod: 18 [Memory.PageTableEntry]  
+	Leaving do_lock(Page(12:1/0),IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Sim: 18 [Memory.PageTableEntry]  
+	Leaving lock(Page(12:1/0),IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Sim: 18 [Hardware.Disk]  
+	Starting I/O for IORB 0, which will take 45 ticks
+	  IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1))
+Sim: 18 [Hardware.Disk]  
+	After enqueueing IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)):
+	  Incrementing IORB count for Openfile(0:1/0) iorbCount = 1, the OSP value = 1
+Sim: 18 [Hardware.Disk]  
+	Leaving enqueueIORB(IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Mod: 18 [FileSys.OpenFile]  
+	Thread(0:1/W1) is suspended on IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1))
+Sim: 18 [Threads.ThreadCB]  
+	Entering suspend(Thread(0:1/W1),IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Mod: 18 [Threads.ThreadCB]  
+	Entering suspend(Thread(0:1/W1),IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W1)))
+Sim: 18 [IFLModules.ThreadCB]  
+	Entering dispatch(); current running thread is null
+Mod: 18 [Threads.ThreadCB]  
+	Can't find suitable thread to dispatch
+Sim: 18 [IFLModules.ThreadCB]  
+	After do_dispatch(): CPU is idle and the ready queue is empty
+Sim: 18 [IFLModules.ThreadCB]  
+	Leaving dispatch()
+Sim: 63 [Devices.DiskInterruptHandler]  
+	Disk interrupt for IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W2))
+Sim: 63 <<Error!>> [Devices.DiskInterruptHandler]  
+	After disk interrupt on IORB(Id(0),Device(0),Page(12:1/0),Diskblock(12),FileRead,Openfile(0:1/0),Thread(0:1/W2)) the IORB's queue of waiting threads is not empty:
+	(0:1)
+	  Forgot to notify threads?
 
-	at osp.IFLModules.IflDevice.enqueueIORB(IflDevice.java:287)
-	at osp.FileSys.OpenFile.do_read(OpenFile.java:422)
-	at osp.IFLModules.IflOpenFile.read(IflOpenFile.java:430)
-	at osp.Memory.PageFaultHandler.a(PageFaultHandler.java:402)
-	at osp.Memory.PageFaultHandler.do_handlePageFault(PageFaultHandler.java:215)
-	at osp.IFLModules.IflPageFaultHandler.handlePageFault(IflPageFaultHandler.java:138)
-	at osp.IFLModules.IflPageFaultHandler.handleInterrupt(IflPageFaultHandler.java:44)
+	at osp.IFLModules.IflDiskInterruptHandler.handleInterrupt(IflDiskInterruptHandler.java:137)
 	at osp.Interrupts.Interrupts.interrupt(Interrupts.java:48)
 	at osp.Hardware.CPU.interrupt(CPU.java:54)
-	at osp.Memory.MMU.do_refer(MMU.java:159)
-	at osp.IFLModules.IflMMU.refer(IflMMU.java:220)
-	at osp.IFLModules.ReferThread.run(ReferThread.java:61)
+	at osp.IFLModules.IflIORB.voidCallback(IflIORB.java:238)
+	at osp.IFLModules.CallbackDiskInterrupt.voidCallback(IflDevice.java:617)
+	at osp.EventEngine.EventCallback.Activate(EventCallback.java:48)
+	at osp.EventEngine.EventDriver.go(EventDriver.java:124)
+	at osp.EventEngine.EngineThread.run(EngineThread.java:60)
 
-Sim:18 [Utilities.SnapshotTaker]  
+Sim:63 [Utilities.SnapshotTaker]  
 	
 
-[Snapshot at 18]
+[Snapshot at 63]
 
 MEMORY:
   Free frames: 29(96%) out of 30
-  Locked frames: 0 out of 30
+  Locked frames: 1 out of 30
   Reserved frames: 1 out of 30
   Referenced frames: 0 out of 30
 
@@ -140,7 +176,7 @@ Memory map:
 |number    |012345678901234567890123456789|
 |----------|------------------------------|
 |free      | FFFFFFFFFFFFFFFFFFFFFFFFFFFFF|
-|lock      |000000000000000000000000000000|
+|lock      |100000000000000000000000000000|
 |reserved  |R                             |
 |dirty     |                              |
 |referenced|                              |
@@ -173,9 +209,9 @@ DEVICES:
   Device 0: Swap Device   (mount point: /vm/)
 	    Number of pages read = 0
 	    Number of pages written = 0
-	    Average number of cylinders swept per disk access = 0
-	      Total number of cylinders swept = 0
-	    Service time per I/O request: 0
+	    Average number of cylinders swept per disk access = 1
+	      Total number of cylinders swept = 1
+	    Service time per I/O request: 45
 	    Device queue:  Empty
   Device 1: Disk   (mount point: /etc/go/)
 	    Number of pages read = 0
@@ -193,9 +229,9 @@ DEVICES:
 	    Device queue:  Empty
 
 TASKS and THREADS:
-  CPU Utilization: 100.0%
-  Average service time per thread: 18.0
-  Average normalized service time per thread: 0.94736844
+  CPU Utilization: 28.57143%
+  Average service time per thread: 63.0
+  Average normalized service time per thread: 0.28125
   Total number of tasks: 1
   Running thread(s): none
   Threads summary: 1 alive
@@ -255,6 +291,6 @@ The suspended  RRBs:
 
 -----------------------------------------------
 
-Sim: 18 [Utilities.Simulation]  
+Sim: 63 [Utilities.Simulation]  
 	Elapsed time: 0 seconds
 

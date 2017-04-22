@@ -14,15 +14,49 @@ import osp.FileSys.*;
 import osp.Tasks.*;
 import java.util.*;
 
-public class IOQueue<E> implements GenericQueueInterface
+public class IOQueue<Integer> implements GenericQueueInterface
 {
-    private LinkedList<E> list = new LinkedList<E>();
-    public IOQueue()
+    //private LinkedList<E> list = new LinkedList<E>();
+    private List<Integer> list = new ArrayList<Integer>();
+/*    public IOQueue()
     {
-        
+        System.out.println("IOQueue.init");
+        this.list = new LinkedList<E>();
+    }*/
+    @Override
+    public int length()
+    { 
+        return list.size();
     }
-    public int length(){ return 0;}
-    public boolean isEmpty(){return false;}
-    public boolean contains(Object obj){return false;}
+    @Override
+    public boolean isEmpty()
+    {
+        return list.isEmpty();
+    }
+    @Override
+    public boolean contains(Object obj)
+    {
+        return list.contains(obj);
+    }
+    public void insert(Integer obj)
+    {
+        this.list.add(obj);
+    }
+    public void delete(Integer ind)
+    {
+        list.remove(ind);
+    }
+    public String toString()
+    {
+        return list.toString();
+    }
+    public Integer getValue(int ind)
+    {
+        return list.get(ind);
+    }
+    public List<Integer> getSub(int fIndex, int toIndex)
+    {
+        return list.subList(fIndex, toIndex);
+    }
     
 }
