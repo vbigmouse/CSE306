@@ -14,9 +14,14 @@ import osp.FileSys.*;
 import osp.Tasks.*;
 import java.util.*;
 
-import javax.net.ssl.ExtendedSSLSession;
 
-
+/*
+    This IO Queue is devide into two part. The first part is from index 0 to current_ind-1.
+    The second part is from current_ind to end of list. 
+    First part schdules iorb for the next scan by calling addNextScan().
+    Second part schdules iorb for current scan procedure by callings addCurrentScan().
+    Pop the element at current index for the IO handler by calling dequeue_thread().
+*/
 public class IOQueue implements GenericQueueInterface
 {
 
@@ -40,10 +45,9 @@ public class IOQueue implements GenericQueueInterface
             return this.cylinder-N2.cylinder;
         } 
     }
-    //private LinkedList<E> list = new LinkedList<E>();
+
     public List<IORBNode> cylinder_list = new ArrayList<IORBNode>();
     public int current_ind = 0;
-    public int current_pos = 0;
     @Override
     public int length()
     { 
@@ -59,10 +63,6 @@ public class IOQueue implements GenericQueueInterface
     {
         return cylinder_list.contains(obj);
     }
-    public void show()
-    {
-        System.out.println("class show :"+this.getClass().toString());
-    }
     public void insert(IORB io, int cy)
     {
         IORBNode iorb_node = new IORBNode(io,cy);
@@ -73,9 +73,9 @@ public class IOQueue implements GenericQueueInterface
         IORBNode iorb_node = new IORBNode(io,cy);
         this.cylinder_list.add(ind,iorb_node);
     }
-    public void delete(IORBNode iorb_node)
+    public void delete()
     {
-        this.cylinder_list.remove(iorb_node);
+        this.cylinder_list.remove(this.current_ind);
     }
     public void delete(int ind)
     {
@@ -83,15 +83,12 @@ public class IOQueue implements GenericQueueInterface
     }
     public String toString()
     {
-        return this.cylinder_list.toString();
-    }
-    public IORBNode getIORBNode()
-    {
-        return this.cylinder_list.get(this.current_ind);
-    }
-    public IORBNode getIORBNode(int ind)
-    {
-        return this.cylinder_list.get(ind);
+        String s="";
+        for(IORBNode t : cylinder_list)
+        {
+            s=s+t.iorb.toString()+"\n";
+        }
+        return s;
     }
     public IORB getIORB()
     {
@@ -109,64 +106,68 @@ public class IOQueue implements GenericQueueInterface
     {
         return this.cylinder_list.subList(fIndex, toIndex);
     }
-
     public void sortSub(int fIndex, int toIndex)
     {
         
         Collections.sort(this.cylinder_list.subList(fIndex, toIndex));
     }
+
+    // schdule iorb to next scan procedure
     public void addNextScan(IORB iorb, int cy)
     {   
+
         IORBNode obj = new IORBNode(iorb, cy);
-        for (IORBNode t:cylinder_list.subList(0, current_ind))
+        boolean addlast=true;
+        for(int i=0;i<current_ind;i++)
         {
-            if(t.compareTo(obj)>0)
+            IORBNode t=cylinder_list.get(i);
+            if(t.cylinder>cy)
             {
-                cylinder_list.add(cylinder_list.indexOf(t), obj);
-                current_ind= -1 * current_ind;
+                cylinder_list.add(i, obj);
+                addlast=false;
                 break;
             }
         }
 
-        if (current_ind<0)  //found suitable position
-            current_ind = -1 * current_ind + 1;
-        else    // no suitable position or empty next queue, add to current index
-        {
+        if (addlast)  //found suitable position
             cylinder_list.add(current_ind, obj);
-            current_ind++;
-        }   
+        current_ind++;
     }
+
+    // schdule iorb to current scan procedure
     public void addCurrentScan(IORB iorb, int cy)
     {
+        // schdule to this scan
         IORBNode obj = new IORBNode(iorb, cy);
+        boolean addlast=true;
         for(IORBNode t:cylinder_list.subList(current_ind, cylinder_list.size()))
         {
             if(t.compareTo(obj)>0)
             {
                 cylinder_list.add(cylinder_list.indexOf(t), obj);
-                current_ind= -1 * current_ind;
+                addlast=false;
                 break;
             }
         }
 
-        if (current_ind<0)  // found suitable position
-            current_ind = -1 * current_ind;
-        else                // current queue empty or no suitable position. add to last.
+        if (addlast)  // found suitable position
             cylinder_list.add(obj);
     }
+
+    // pop-out next iorb
     public void dequeue_thread(ThreadCB thread)
     {
-        for(IORBNode t:cylinder_list)
+        for(int i=cylinder_list.size()-1;i>=0;i--)
         {
+            IORBNode t=cylinder_list.get(i);
             if(t.iorb.getThread()==thread)
             {
                 t.iorb.getPage().unlock();
                 t.iorb.getOpenFile().decrementIORBCount();
-                if(!t.iorb.getOpenFile().closePending)
-                    t.iorb.getOpenFile().closePending=true;
-                if(t.iorb.getOpenFile().getIORBCount()==0)
+                if(t.iorb.getOpenFile().closePending==true && t.iorb.getOpenFile().getIORBCount()==0)
                     t.iorb.getOpenFile().close();
-                
+                if(i<current_ind) // remove iorb in next scan, current ind-1
+                    current_ind--;
                 cylinder_list.remove(t);
             }
         }

@@ -29,33 +29,31 @@ public class Device extends IflDevice
 
     public int do_enqueueIORB(IORB iorb)
     {
-
-        System.out.println("iorb " + iorb.toString());
+        //System.out.println("do_enqueueIORB iorb " + iorb.toString());
         iorb.getPage().lock(iorb);
         iorb.getOpenFile().incrementIORBCount();
         
-        Disk disk = (Disk)Device.get(iorb.getID());
+        Disk disk = (Disk)Device.get(iorb.getDeviceID());
         int cylinder = CalcuteCylinder(iorb);
-        System.out.println("cylinder " + cylinder);
-
         iorb.setCylinder(cylinder);
-        disk.getHeadPosition();   
 
         if (iorb.getThread().getStatus() == ThreadKill)
             return FAILURE;
         if (!disk.isBusy())
+        {
             disk.startIO(iorb);
+        }
         else
         {
             if(cylinder>disk.getHeadPosition()) // put in current scan
-            {
-                System.out.println("Disk busy, insert current scan queue. " + cylinder);
+            {   
+                //System.out.println("Disk busy, insert current scan queue. " + cylinder);
                 ((IOQueue)iorbQueue).addCurrentScan(iorb,cylinder);
 
             } 
             else // put in next scan
             {
-                System.out.println("Disk busy, insert next scan queue. " + cylinder);    
+                //System.out.println("Disk busy, insert next scan queue. " + cylinder);    
                 ((IOQueue)iorbQueue).addNextScan(iorb,cylinder);
             }
         }
@@ -65,6 +63,8 @@ public class Device extends IflDevice
 
     public IORB do_dequeueIORB()
     {
+        //System.out.println("\nospDeviceQueue():" + ospDeviceQueue());
+        //System.out.println("\nmyqueue["+((IOQueue)iorbQueue).current_ind+"]"+ ((IOQueue)iorbQueue).toString() +"\n")
         if(((IOQueue)iorbQueue).length() == 0)
             return null;
         
@@ -72,31 +72,31 @@ public class Device extends IflDevice
             ((IOQueue)iorbQueue).current_ind = 0;
 
         IORB next = ((IOQueue)iorbQueue).getIORB();
-        ((IOQueue)iorbQueue).delete(0);
+        ((IOQueue)iorbQueue).delete();
+        //System.out.println("do_dequeueIORB next :" + next.toString());
         return next;
     }
 
     public void do_cancelPendingIO(ThreadCB thread)
     {
+        //System.out.println("do_cancelPendingIO  :" + thread.toString());
         if(((IOQueue)iorbQueue).length() != 0)
             ((IOQueue)iorbQueue).dequeue_thread(thread);
     }
 
     public static void atError()
     {
-        // your code goes here
 
     }
 
     public static void atWarning()
     {
-        // your code goes here
 
     }
 
     public static int CalcuteCylinder(IORB iorb)
     {
-        Disk disk = (Disk)Device.get(iorb.getID());
+        Disk disk = (Disk)Device.get(iorb.getDeviceID());
         int bytes_per_block = (int)Math.pow(2,MMU.getVirtualAddressBits()-MMU.getPageAddressBits()); // bytes per block
         int sec_per_block = bytes_per_block / disk.getBytesPerSector();
         return iorb.getBlockNumber() * sec_per_block / disk.getSectorsPerTrack()/disk.getPlatters();
@@ -105,6 +105,3 @@ public class Device extends IflDevice
 
 }
 
-/*
-      Feel free to add local classes to improve the readability of your code
-*/
